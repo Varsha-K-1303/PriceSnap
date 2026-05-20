@@ -1,0 +1,199 @@
+<?php
+// Include HTML DOM Parser
+include('simple_html_dom.php');
+
+// Enable debugging (optional)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Price Comparison Website</title>
+  <link rel="icon" href="img/mdb-favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.11.2/css/all.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js"></script>
+
+  <style>
+    body {
+      background-color: #f9f9f9;
+    }
+    .card {
+      margin: 15px;
+      border-radius: 15px;
+      box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+    }
+    img {
+      height: 180px;
+      object-fit: contain;
+    }
+    .card-text {
+      font-weight: bold;
+      font-size: large;
+    }
+    .jumbotron {
+      background-color: #333;
+      color: white;
+      border-radius: 10px;
+    }
+    footer {
+      color: white;
+      margin-top: 50px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">Ecommerce Price Comparison</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#basicExampleNav"
+      aria-controls="basicExampleNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="basicExampleNav">
+      <ul class="navbar-nav mr-auto">
+        <a class="nav-link" href="#">Home<span class="sr-only">(current)</span></a>
+      </ul>
+
+      <!-- Search Form -->
+      <form class="form-inline" method="GET" action="">
+        <input class="form-control mr-sm-2" type="text" name="search" placeholder="Search for products..." required>
+        <button class="btn btn-outline-light my-2 my-sm-0" type="submit">Search</button>
+      </form>
+    </div>
+  </nav>
+
+  <!-- Header -->
+  <br><br>
+  <div class="jumbotron jumbotron-fluid text-center">
+    <div class="container">
+      <h1>Ecommerce Price Comparison Website Using Web Scraping</h1>
+      <p>Compare product prices from Amazon and Flipkart easily.</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <?php
+    if (isset($_GET['search'])) {
+        $search = $_GET['search'];
+        $encoded_search = urlencode($search);
+
+        // 🔑 Add your ScraperAPI key here
+        $api_key = "c5c973348b6fa1ed79b159343c2c42a79ed3e3335ff4bcd17574dcb8841282ae";
+
+        echo "<h3 class='mt-5 mb-3 text-center'>Search results for: <b>$search</b></h3>";
+        echo "<div class='row'>";
+
+        // ===================== AMAZON RESULTS =====================
+        $amazon_url = "https://www.amazon.in/s?k=$encoded_search";
+        $amazon_scrape_url = "http://api.scraperapi.com?api_key=$api_key&url=" . urlencode($amazon_url);
+
+        $amazon_html = file_get_contents($amazon_scrape_url);
+        $html_amazon = str_get_html($amazon_html);
+
+        echo "<div class='col-md-12 mt-3'><h4 class='text-success'>Amazon Results</h4></div>";
+
+        if ($html_amazon) {
+            $count = 0;
+            foreach ($html_amazon->find('div.s-result-item') as $product) {
+                $title = $product->find('h2 a span', 0)->plaintext ?? '';
+                $price = $product->find('span.a-price-whole', 0)->plaintext ?? '';
+                $img = $product->find('img.s-image', 0)->src ?? '';
+                $link = "https://www.amazon.in" . ($product->find('a.a-link-normal', 0)->href ?? '');
+
+                if ($title && $price) {
+                    echo "
+                    <div class='col-md-3'>
+                        <div class='card p-2 text-center'>
+                            <img src='$img' alt='Product image'>
+                            <div class='card-body'>
+                                <h6>$title</h6>
+                                <p class='card-text'>₹$price</p>
+                                <a href='$link' target='_blank' class='btn btn-success btn-sm'>View on Amazon</a>
+                            </div>
+                        </div>
+                    </div>";
+                    $count++;
+                    if ($count >= 8) break;
+                }
+            }
+            if ($count == 0) echo "<p class='text-danger'>No Amazon results found.</p>";
+        } else {
+            echo "<p class='text-danger'>Unable to fetch Amazon results.</p>";
+        }
+
+        // ===================== FLIPKART RESULTS =====================
+        $flipkart_url = "https://www.flipkart.com/search?q=$encoded_search";
+        $flipkart_scrape_url = "http://api.scraperapi.com?api_key=$api_key&url=" . urlencode($flipkart_url);
+
+        $flipkart_html = file_get_contents($flipkart_scrape_url);
+        $html_flipkart = str_get_html($flipkart_html);
+
+        echo "<div class='col-md-12 mt-5'><h4 class='text-primary'>Flipkart Results</h4></div>";
+
+        if ($html_flipkart) {
+            $count = 0;
+            foreach ($html_flipkart->find('div._75nlfW') as $product) {
+                $title = $product->find('a.IRpwTa', 0)->plaintext ?? '';
+                if ($title == '') $title = $product->find('a.s1Q9rs', 0)->plaintext ?? '';
+                $price = $product->find('div._30jeq3', 0)->plaintext ?? '';
+                $img = $product->find('img', 0)->src ?? '';
+                $link = "https://www.flipkart.com" . ($product->find('a', 0)->href ?? '');
+
+                if ($title && $price) {
+                    echo "
+                    <div class='col-md-3'>
+                        <div class='card p-2 text-center'>
+                            <img src='$img' alt='Product image'>
+                            <div class='card-body'>
+                                <h6>$title</h6>
+                                <p class='card-text'>$price</p>
+                                <a href='$link' target='_blank' class='btn btn-dark btn-sm'>View on Flipkart</a>
+                            </div>
+                        </div>
+                    </div>";
+                    $count++;
+                    if ($count >= 8) break;
+                }
+            }
+            if ($count == 0) echo "<p class='text-danger'>No Flipkart results found.</p>";
+        } else {
+            echo "<p class='text-danger'>Unable to fetch Flipkart results.</p>";
+        }
+
+        echo "</div>";
+    }
+    ?>
+  </div>
+
+  <!-- Footer -->
+  <footer class="page-footer font-small bg-dark pt-4 mt-5">
+    <div class="container-fluid text-center text-md-left">
+      <div class="row text-white">
+        <div class="col-md-6 mt-md-0 mt-3">
+          <h5 class="text-uppercase">Price Comparison Tool</h5>
+          <p>Compare prices of products across Amazon and Flipkart instantly.</p>
+        </div>
+        <hr class="clearfix w-100 d-md-none pb-3">
+        <div class="col-md-3 mb-md-0 mb-3">
+          <h5 class="text-uppercase">E-commerce sites</h5>
+          <ul class="list-unstyled">
+            <li><a href="https://www.amazon.in/" class="text-white" target="_blank">Amazon</a></li>
+            <li><a href="https://www.flipkart.com/" class="text-white" target="_blank">Flipkart</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-copyright text-center py-3">
+      © 2025 Price Comparison Project
+    </div>
+  </footer>
+</body>
+</html>
